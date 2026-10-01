@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="id"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">
+<title>Admin — C322y.ai</title>
+<style>
+*{box-sizing:border-box}body{margin:0;min-height:100vh;font-family:Inter,"Segoe UI",system-ui,sans-serif;color:#f1f5ff;background:radial-gradient(600px 400px at 100% 100%,rgba(255,198,26,.3),transparent 65%),linear-gradient(180deg,#040c26,#0a2a75);background-attachment:fixed}
+.w{max-width:640px;margin:0 auto;padding:24px 18px}h1{font-size:22px;margin:0 0 18px}h1 b{color:#ffc61a}
+input{width:100%;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,.2);background:#041238;color:#fff;font:inherit;margin-bottom:10px}
+button{width:100%;padding:12px;border:0;border-radius:10px;background:#ffc61a;color:#061a4a;font:800 15px inherit}
+.big{font-size:18px;margin-bottom:14px}.big span{font-size:44px;font-weight:800;color:#7dffb0;margin-right:8px}
+.u{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:12px 14px;margin-bottom:10px;font-size:14px;color:#9fb0d6;line-height:1.6}
+.u b{color:#f1f5ff;font-size:15px}.u b::before{content:"● ";color:#6b7a99}.u.on b::before{color:#7dffb0}
+#err{color:#ffb4b4;margin-top:10px}
+</style></head><body><div class="w">
+<h1>C322y<b>.ai</b> · Pengguna aktif</h1>
+<div id="login"><input id="k" type="password" placeholder="Kunci admin"><button id="go">Masuk</button></div>
+<div id="dash" hidden><div class="big"><span id="n">0</span>sedang aktif</div><div id="t"></div></div>
+<div id="err" role="alert"></div></div>
+<script>
+const $=id=>document.getElementById(id);let key=sessionStorage.getItem("ak")||"",timer;
+const ago=ms=>{const s=Math.max(0,Math.round(ms/1000));return s<60?s+" dtk lalu":s<3600?Math.floor(s/60)+" mnt lalu":Math.floor(s/3600)+" jam lalu"};
+async function load(){
+  try{
+    const r=await fetch("/api/presence",{headers:{"x-admin-key":key}}),d=await r.json();
+    if(!r.ok){$("err").textContent=d.error||"Gagal.";$("login").hidden=false;$("dash").hidden=true;clearInterval(timer);return}
+    $("err").textContent="";$("login").hidden=true;$("dash").hidden=false;$("n").textContent=d.active;
+    const t=$("t");t.innerHTML="";
+    d.users.forEach(u=>{
+      const c=document.createElement("div");c.className="u"+(u.active?" on":"");
+      const a=document.createElement("b");a.textContent="Pengguna #"+u.id;
+      const b=document.createElement("div");b.textContent=([u.city,u.country].filter(Boolean).join(", ")||"Lokasi tidak diketahui")+" · "+(u.device||"-");
+      const e=document.createElement("div");e.textContent=u.msgs+" pesan · terakhir "+ago(d.now-u.last)+(u.first?" · sejak "+new Date(u.first).toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"}):"");
+      c.append(a,b,e);t.appendChild(c);
+    });
+    if(!d.users.length)t.textContent="Belum ada pengguna dalam 30 menit terakhir.";
+  }catch(e){$("err").textContent="Gagal terhubung."}
+}
+$("go").onclick=()=>{key=$("k").value.trim();sessionStorage.setItem("ak",key);load();clearInterval(timer);timer=setInterval(load,5000)};
+if(key){load();timer=setInterval(load,5000)}
+</script></body></html>
