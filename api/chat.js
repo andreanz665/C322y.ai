@@ -1,3 +1,4 @@
+const PROMPT_SYS = "Ubah permintaan pengguna menjadi satu prompt gambar dalam bahasa Inggris, deskriptif (subjek, gaya, pencahayaan, komposisi), maksimal 60 kata. Keluarkan hanya prompt-nya, tanpa tanda kutip atau penjelasan.";
 const SYSTEM = "Kamu C322y, agen AI yang ramah, rapi, dan teliti. Jawab dalam bahasa pengguna dengan Markdown ringkas (judul pendek, poin, tabel bila perlu). Jika ada foto atau voice note, pahami isinya dengan jelas.";
 
 module.exports = async (req, res) => {
@@ -15,7 +16,7 @@ module.exports = async (req, res) => {
   const sys = SYSTEM + (mode === "rencana" ? " Mode rencana: susun rencana langkah demi langkah yang terstruktur sebelum menjawab." : "");
   const payload = img
     ? { contents, generationConfig: { responseModalities: ["TEXT", "IMAGE"] } }
-    : { system_instruction: { parts: [{ text: sys }] }, contents, generationConfig: { maxOutputTokens: 8192 } };
+    : { system_instruction: { parts: [{ text: mode === "prompt" ? PROMPT_SYS : sys }] }, contents, generationConfig: { maxOutputTokens: 8192 } };
 
   try {
     const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
@@ -24,7 +25,13 @@ module.exports = async (req, res) => {
       body: JSON.stringify(payload)
     });
     const d = await r.json();
-    if (!r.ok) return res.status(r.status).json({ error: d.error?.message || "Kesalahan dari Gemini." });
+    if (!r.ok) {
+      const quota = r.status === 429 || /quota|billing/i.test(d.error?.message || "");
+      const msg = quota
+        ? (img ? "Pembuatan gambar belum aktif untuk API key ini. Aktifkan billing di Google AI Studio, lalu coba lagi." : "Kuota API key sedang habis. Tunggu sebentar lalu coba lagi.")
+        : (d.error?.message || "Kesalahan dari Gemini.");
+      return res.status(r.status).json({ error: msg });
+    }
     const parts = d.candidates?.[0]?.content?.parts || [];
     const text = parts.filter(p => !p.thought && p.text).map(p => p.text).join("");
     const images = parts.map(p => p.inlineData || p.inline_data).filter(x => x && x.data)
